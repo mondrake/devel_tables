@@ -1,0 +1,9 @@
+list_tables:
+  display_prefix: true
+  display_row_count: true
+  display_collation: true
+  display_storage_method: true
+list_records:
+  limit_text_to_chars: 20
+  display_lob: label
+  kint_blob: true

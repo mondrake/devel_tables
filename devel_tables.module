@@ -1,0 +1,696 @@
+<?php
+
+
+/**
+ * @file
+ * A Drupal front-end for mondrake.
+ *
+ * More soon...
+ */
+
+/**
+ * Implements hook_admin_paths().
+ */
+/*function devel_tables_admin_paths() {
+  $paths = array(
+    'devel_tables/*' => TRUE,
+  );
+  return $paths;
+}*/
+
+/**
+ * Implementation of hook_menu(). 
+ */
+/*function devel_tables_menu()    {
+    $items = array(); 
+
+    $items['admin/config/development/devel_tables'] = array(
+        'title' => 'Devel_tables settings',
+        'description' =>  'Devel module extension to allow browsing Drupal database tables.',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('devel_tables_admin_settings'),
+        'file' => 'devel_tables.admin.inc',
+        'access arguments' => array('administer site configuration'),
+    );
+    $items['devel/tables'] = array(
+        'title' => 'Table browser',
+        'page callback' => 'drupal_goto',
+        'page arguments' => array('devel_tables/tables'),
+        'description' => t('Browse database tables.'),
+        'access arguments' => array('access devel information'),
+        'type' => MENU_NORMAL_ITEM,
+        'menu_name' => 'devel',
+    );
+    $items['devel_tables/tables'] = array(
+        'title' => 'Tables',
+        'page callback' => 'DTListTablesEntry',
+        'description' => t('Browse database tables.'),
+        'access arguments' => array('access devel information'),
+        'type' => MENU_CALLBACK | MENU_VISIBLE_IN_BREADCRUMB,
+    );
+    $items['devel_tables/tables/%'] = array(
+//        'title' => 'Database: xxxx',
+        'title callback' => 'DTListTablesTitle',
+        'title arguments' => array(2),
+        'page callback' => 'DTListTables',
+        'page arguments' => array(2),
+        'description' => t('List of Drupal database tables.'),
+        'access arguments' => array('access devel information'),
+        'type' => MENU_CALLBACK | MENU_VISIBLE_IN_BREADCRUMB,
+    );
+    $items['devel_tables/tables/%/list'] = array(
+        'title' => 'List',
+        'type'  => MENU_DEFAULT_LOCAL_TASK,
+    );
+    $items['devel_tables/tables/%/list/list'] = array(
+        'title' => 'List',
+        'type'  => MENU_DEFAULT_LOCAL_TASK,
+    );
+	$items['devel_tables/tables/%/list/refresh'] = array(
+		'title' => 'Refresh',
+        'page callback' => 'DTRefreshTables',
+        'page arguments' => array(2),
+        'description' => t('Refresh list of Drupal database tables.'),
+        'access arguments' => array('access devel information'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 1,
+	);
+	$items['devel_tables/tables/%/list/connection'] = array(
+		'title' => 'Change database',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('DTChangeConnectionForm', 2),
+//        'page callback' => 'DTChangeConnection',
+//        'page arguments' => array(2),
+        'description' => t('Change database connection.'),
+        'access arguments' => array('access devel information'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 1,
+	);
+	$items['devel_tables/tables/%/list/config'] = array( 
+		'title' => 'Config',
+    'page callback' => 'DTSetVar',
+    'description' => t('Configure Devel_tables.'), 
+    'access arguments' => array('devel_tables_admin_settings'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 2,
+	);
+    $items['devel_tables/tables/%/table/%'] = array(
+//        'title' => 'Table: xxxx',
+        'title callback' => 'DTListRecordsTitle',
+        'title arguments' => array(2, 4),
+        'page callback' => 'DTListRecords',
+        'page arguments' => array(2, 4),
+        'description' => t('List table records.'),
+        'access arguments' => array('access devel information'),
+        'type' => MENU_CALLBACK | MENU_VISIBLE_IN_BREADCRUMB,
+    );
+    $items['devel_tables/tables/%/table/%/row'] = array(
+        'title' => 'Tables list',
+        'type'  => MENU_CALLBACK,
+    );
+    $items['devel_tables/tables/%/table/%/row/%'] = array(
+//        'title' => 'Row: xxxx',
+        'title callback' => 'DTRecordEditFormTitle',
+        'title arguments' => array(2, 4, 6),
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('DTRecordEditForm', 2, 4, 6),
+        'description' => t('View record.'),
+        'access arguments' => array('access devel information'),
+        'type' => MENU_CALLBACK | MENU_VISIBLE_IN_BREADCRUMB,
+    );
+    return $items;
+}*/
+
+/**
+ * Page callback
+ */
+function DTRefreshTables($connection)    
+{
+    cache_clear_all("devel_tables:$connection", 'cache', $wildcard = true);
+    drupal_goto('devel_tables/tables');
+}
+
+/**
+ * Page callback
+ */
+function DTSetVar()    
+{
+    /*$DTVars = array(
+        'listTables' => array(
+            'displayPrefix' => true,
+            'displayRowCount' => true,
+            'displayCollation' => false, 
+            'displayStorageMethod' => true,
+        ),
+        'listRecords' => array(
+            'limitTextTo' => 20,
+            'displayLob' => 'label',
+            'textimage' => array(
+                'useInHeaders' => true,
+                'headersPreset' => null,
+            ),
+        ),
+    );
+    variable_set('devel_tables', $DTVars);*/
+    drupal_goto('admin/config/development/devel_tables');
+}
+
+/**
+ * Page callback
+ */
+function DTListTablesEntry()    
+{
+    if (isset($_SESSION['devel_tables']['connection'])) {
+        $currentConnection = $_SESSION['devel_tables']['connection'];
+    } else {
+        $keys = array_keys(Database::getConnectionInfo());
+        $currentConnection = $keys[0];
+        $_SESSION['devel_tables']['connection'] = $currentConnection;
+    }
+    drupal_goto("devel_tables/tables/$currentConnection");
+}
+
+/**
+ * Page callback
+ */
+function DTChangeConnectionForm($form, &$form_state)    
+{
+    global $databases;
+    
+    $keys = array_keys($databases);
+    if (isset($_SESSION['devel_tables']['connection'])) {
+        $currentConnection = $_SESSION['devel_tables']['connection'];
+    } else {
+        $currentConnection = $keys[0];
+    }
+    $obj = new drupalTableObj($currentConnection); 
+
+    $form['databaseInfo'] = array('#type' => 'fieldset', '#title' => t('Database connection'));
+    $form['databaseInfo']['connection'] = array(
+        '#type' => 'item',
+        '#title' =>  t('Current Drupal database:'),
+        '#markup' =>  $currentConnection,
+        '#description' => $obj->getDbServerName() . ' ' . $obj->getDbServerVersion() . 
+                      t(' accessed via ') . $obj->getDbolVariable('DBAL') . '/' . 
+                      $obj->getDBALVersion() . '/' . $obj->getDBALDriver(),
+    );
+
+    $options = drupal_map_assoc($keys);
+    $form['databaseInfo']['database_select'] = array(
+        '#type' => 'radios',
+        '#title' => t('Select database'),
+        '#description' => t('Select the database you wanna see.'),
+        '#options' => $options,
+        '#default_value' => $currentConnection,
+    );
+
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => t('Change database'));
+
+    return($form);
+}
+
+function DTChangeConnectionForm_validate($form, &$form_state)
+{
+}
+
+function DTChangeConnectionForm_submit($form, &$form_state)
+{
+    $v = $form_state['values'];
+    $_SESSION['devel_tables']['connection'] = $v['database_select'];
+    drupal_goto('devel_tables/tables');
+}
+
+/**
+ * Page callback
+ */
+function DTListTablesTitle($connection)    
+{
+    return t('Database: @database', array('@database' => $connection));
+}
+
+/**
+ * Page callback
+ */
+function DTListTables($connection)    
+{
+    // @todo a default setting if variable not defined
+    $DTVars = variable_get('devel_tables');
+    $DTTables = _DTGetTables($connection);
+ 
+    // filter by module
+    $build['DTtables_filter_form'] = drupal_get_form('DTtables_filter_form');
+//kpr($build);
+    
+
+    // prepares table headers
+    $header = array();
+    if ($DTVars['listTables']['displayPrefix']) {
+        $header[] =  array('data' => t('Prefix'));
+    }
+    $header[] =  array('data' => t('Table'), 'sort' => 'asc');
+    $header[] =  array('data' => t('Module'));
+    $header[] =  array('data' => t('Description'));
+    if ($DTVars['listTables']['displayRowCount']) {
+        $header[] =  array('data' => t('# rows'));
+    }
+    if ($DTVars['listTables']['displayCollation']) {
+        $header[] =  array('data' => t('Collation'));
+    }
+    if ($DTVars['listTables']['displayStorageMethod']) {
+        $header[] =  array('data' => t('Storage'));
+    }
+
+    // prepares table rows
+    $rows = array();
+    foreach ($DTTables as $DTName => $DTProperties) {
+        $r = array();
+        if ($DTVars['listTables']['displayPrefix']) {
+            $r[] = $DTProperties['prefix']; 
+        }
+        $r[] = l($DTProperties['name'], "devel_tables/tables/$connection/table/$DTName");
+        $r[] = $DTProperties['module'];
+        $r[] = $DTProperties['description'];
+        if ($DTVars['listTables']['displayRowCount']) {
+            if (module_exists('format_number')) {
+                $r[] = '<div align=right>' . format_number($DTProperties['rowsCount'] . '</div>');
+            } else {
+                $r[] = '<div align=right>' . $DTProperties['rowsCount'] . '</div>';
+            }
+        }
+        if ($DTVars['listTables']['displayCollation']) {
+            $r[] = $DTProperties['collation'];
+        }
+        if ($DTVars['listTables']['displayStorageMethod']) {
+            $r[] = $DTProperties['storageMethod'];
+        }
+        $rows[] = $r;
+    }
+  
+    // render table
+/*    $output .= theme_table(
+        array(
+            'header' => $header,
+            'rows' => $rows,
+            'attributes' => array(),
+            'caption' => null,
+            'colgroups' => null,
+            'sticky' => true,
+            'empty' => t('No data has been collected.'),
+        )
+    );*/
+    $build['DTtables'] = array(
+        array(
+            '#theme' => 'table',   
+            '#header' => $header,
+            '#rows' => $rows,
+            '#attributes' => array(),
+            '#caption' => null,
+            '#colgroups' => null,
+            '#sticky' => true,
+            '#empty' => t('No data has been collected.'),
+        )
+    );
+    
+    //menu_set_active_trail();
+
+    return $build;
+}
+
+/**
+ * Page callback
+ */
+function DTListRecordsTitle($connection, $table)
+{
+    return t('Table: @table', array('@table' => $table));
+}
+
+function DTListRecords($connection, $table)
+{
+
+//    $menuParent = menu_get_active_trail();
+//    kpr($menuParent);
+
+    // @todo a default setting if variable not defined
+    $DTVars = variable_get('devel_tables');
+    $DTTables = _DTGetTables($connection);
+    
+    $obj = new drupalTableObj($connection, $table, $DTTables[$table]);
+    $colDets = $obj->getColumnProperties();
+    $total = $obj->count();
+    $limit = 50;
+    $pageNo = pager_find_page(4); 
+    pager_default_initialize($total, $limit, 4);
+    $objs = $obj->listAll(NULL, $limit , $pageNo * $limit);
+
+    $header = array();
+    $header[] =  array('data' => t('#'));
+    foreach ($colDets as $c => $d)    {
+        $header[] = theme('textimage_style_image', array(
+            'style_name' => 'verthead', 
+            'text'   => $c,
+            'alt'   => $c,
+            'title'   => $c,
+        ));
+    }
+
+    $rows = array();
+    $j = ($pageNo * $limit) + 1;
+    if ($objs) {
+        foreach ($objs as $a => $b) {        // $b is the record
+            $row = array();
+            $enc = base64_encode($b->primaryKeyString);
+            $row[] = $j;
+            foreach ($colDets as $c => $d)    {        // $c is the field, $d is the value
+                if ($d['type'] == 'blob')    {  // @todo check a value exists
+                    switch ($DTVars['listRecords']['displayLob']) {
+                    case 'label':
+                        $tmp = '*BLOB* ' . strlen($b->$c);
+                        break;
+                    case 'text':
+                    default:
+                        $tmp = _DTTextTrim($d, $b->$c);
+                        break;
+                    }
+                } elseif ($c == 'timestamp' || $c == 'created'|| $c == 'expire') {
+                    $tmp = format_date((int) $b->$c, 'full');
+                } else {
+                    $tmp = _DTTextTrim($d, $b->$c);
+                }
+                if ($d['primaryKey']) {
+                    $row[] = l($tmp, "devel_tables/tables/$connection/table/$table/row/$enc");
+                } else {
+                    $row[] = $tmp;
+                }
+            }
+            $rows[] = $row;
+            $j++;
+        }
+    }
+
+    //drupal_set_title($DTTables[$table]['name']);  
+    
+    //$output = t('Rows #: ') . $total;
+    
+    $output = theme(
+        'pager', array(
+//            'tags' => array('«', '‹', null, '›', '»'),
+//            'quantity' => 9,
+//            'quantity' => 5,
+            'element' => 4,
+        )
+    );
+    
+    $output .= theme_table(array(
+        'header' => $header,
+        'rows' => $rows,
+        'attributes' => array(),
+        'caption' => NULL,
+        'colgroups' => NULL,
+        'sticky' => TRUE,
+        'empty' => t('No data has been collected.'),
+    ));
+
+    // enhance breadcrumbs
+    //$breadcrumbs = drupal_get_breadcrumb();
+    //$breadcrumbs[] = l(t('Tables'),'devel_tables/tables'); 
+    //drupal_set_breadcrumb($breadcrumbs);
+    
+    return $output;
+}
+
+/**
+ * Page callback
+ */
+function DTRecordEditFormTitle($connection, $table, $encPK)
+{
+    return t('Row: @PK', array('@PK' => base64_decode($encPK)));
+}
+
+/**
+ * Page callback
+ */
+function DTRecordEditForm($form, &$form_state)
+{
+//kpr($form_state);
+    $connection = $form_state['build_info']['args'][0];
+    $table = $form_state['build_info']['args'][1];
+    $primaryKey  = $form_state['build_info']['args'][2];
+
+    $DTTables = _DTGetTables($connection);
+    $obj = new drupalTableObj($connection, $table, $DTTables[$table]);
+    $colDets = $obj->getColumnProperties();
+    $obj->read(base64_decode($primaryKey));
+    $DTVars = variable_get('devel_tables');
+
+    //drupal_set_title($DTTables[$table]['name'] . ' - ' . $obj->primaryKeyString);
+    
+   // $form['krumo_head'] = array(
+   //     '#markup' => krumo::dump_css(),);
+
+    $form['tableRec'] = array(
+        '#theme' => 'form_panel_table',
+        '#form_panel_odd_even' => true,
+        '#form_panel_table_attributes' => array('border' => 0));
+    
+    $form['tableRec']['h1'] = array(
+        '#title' => t('Field name'),
+        '#type' => 'item',
+        '#weight' => 1001,
+    );
+    $form['tableRec']['h2'] = array(
+        '#title' => t('Value'),
+        '#type' => 'item',
+        '#weight' => 1002,
+    );
+    $tabRow = 1;
+    foreach ($colDets as $a => $b)    {
+        
+        // $a has the field name
+        // $b has the field properties
+        
+        // determines field description
+        switch ($b['type'])    {
+            case 'boolean':
+            case 'integer':
+            case 'time':
+            case 'date':
+            case 'timestamp':
+                $fieldTypeDesc = $b['type'];
+                break;
+            case 'text':
+            case 'blob':
+                if($b['length']) 
+                    $fieldTypeDesc = $b['type'] . '/' . $b['length'];
+                else
+                    $fieldTypeDesc = $b['type'];
+                break;
+            default:
+                $fieldTypeDesc = $b['type'] . '/' . $b['length'];
+        }
+        if ($b['comment'])    {
+            $fieldTypeDesc .= " - " . $b['comment'];
+        }
+
+        $suffixDesc = null;
+        if ($a == 'timestamp' || $a == 'created')    {
+            $suffixDesc .= format_date((int) $obj->$a, 'full');
+        }
+
+        // output field name
+        $form['tableRec']['__label__' . $a] = array(
+            '#title' => $a,
+            '#type' => 'item',
+            '#weight' => (int) (++$tabRow . '001'),
+        );
+
+        // determines how to output field
+        if (!$b['editable']) {
+            $form['tableRec'][$a] = array(
+                '#title' => $obj->$a,
+                '#type' => 'item',
+                '#description' => $fieldTypeDesc,
+                '#weight' => (int) ($tabRow . '002'),
+            );
+        } else if ($b['type'] == 'blob') {
+            if ($DTVars['listRecords']['krumoBlob']) {
+              $tmp = @unserialize($obj->$a);
+              if (!$tmp) {
+                $tmp = json_decode($obj->$a, TRUE);
+              }
+              if (!$tmp) {
+                $tmp = jsonpp($obj->$a);
+              }
+            }
+            else {
+              $tmp = strtr($obj->$a, array('{' => "\n\t", '}' => "\n"));
+            }
+            $form['tableRec'][$a] = array(
+                '#type' => 'item',
+                '#markup' => "<div>" . kprint_r($tmp, true) . "</div>",
+                '#description' => $fieldTypeDesc,
+                '#weight' => (int) ($tabRow . '002'),
+            );
+        } else {
+            $form['tableRec'][$a] = array(
+                '#description' => $fieldTypeDesc,
+                '#default_value' => $obj->$a,
+                '#weight' => (int) ($tabRow . '002'),
+            );
+            switch ($b['type'])    {
+                case 'boolean':
+                    $form['tableRec'][$a]['#type'] = 'checkbox';
+                    break;
+                case 'integer':
+                case 'time':
+                    $form['tableRec'][$a]['#type'] = 'textfield';
+                    $form['tableRec'][$a]['#size'] = 12;
+                    $form['tableRec'][$a]['#field_suffix'] = $suffixDesc;
+                    break;
+                case 'date':
+                    $form['tableRec'][$a]['#type'] = 'textfield';
+                    $form['tableRec'][$a]['#size'] = 12;
+                    $form['tableRec'][$a]['#attributes'] = array ( 'class' => array('datepicker') );
+                case 'timestamp':
+                    $form['tableRec'][$a]['#type'] = 'textfield';
+                    $form['tableRec'][$a]['#size'] = 22;
+                    break;
+                case 'text':
+                case 'blob':
+                    if($b['length']) {
+                        $form['tableRec'][$a]['#type'] = 'textfield';
+                        $size = ($b['length'] > 60) ? 60 : $b['length'];
+                        $form['tableRec'][$a]['#size'] = $size;
+                        $form['tableRec'][$a]['#maxlength'] = $b['length'];
+                    }
+                    else    {
+                        $form['tableRec'][$a]['#type'] = 'textarea';
+                        $form['tableRec'][$a]['#cols'] = 100;
+                        $form['tableRec'][$a]['#rows'] = 5;
+                    }
+                    break;
+                default:
+                    $form['tableRec'][$a]['#type'] = 'textfield';
+                    $size = ($b['length'] > 60) ? 60 : $b['length'];
+                    $form['tableRec'][$a]['#size'] = $size;
+                    $form['tableRec'][$a]['#maxlength'] = $b['length'];
+            }
+        }
+    }
+
+    //krumo($form['tableRec']);
+    //$form['submit'] = array(
+    //    '#type' => 'submit',
+    //    '#value' => t('Update'));
+
+    //$form['#after_build'] = array('_mondrake_objedit_form_after_build');
+
+    // enhance breadcrumbs
+    //$breadcrumbs = drupal_get_breadcrumb();
+    //$breadcrumbs[] = l(t('Table Browser'),'admin/drupalbrowser'); 
+    //$breadcrumbs[] = l(t($table),'admin/drupallist/' . $table ); 
+    //drupal_set_breadcrumb($breadcrumbs);
+
+    return $form;
+}
+
+function _DTTextTrim($colProperties, $text)
+{
+    if ($colProperties['primaryKey']) {
+        return $text;
+    }
+
+    // @todo a default setting if variable not defined
+    $DTVars = variable_get('devel_tables');
+    
+    $text = strip_tags($text);
+    if (is_null($DTVars['listRecords']['limitTextTo'])) {
+        return $text;
+    }
+    if (strlen($text) > $DTVars['listRecords']['limitTextTo']) {
+        return substr($text, 0, $DTVars['listRecords']['limitTextTo'] - 3) . '...';
+    }
+    return $text;
+}  
+
+
+/**
+ * Return form for dblog administration filters.
+ *
+ * @ingroup forms
+ * @see dblog_filter_form_submit()
+ * @see dblog_filter_form_validate()
+ */
+function DTTables_filter_form($form) {
+  //$filters = dblog_filters();
+  $form['filters'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Filter modules'),
+    '#collapsible' => true,
+//    '#collapsed' => empty($_SESSION['dblog_overview_filter']),
+    '#collapsed' => true,
+  );
+/*  foreach ($filters as $key => $filter) {
+    $form['filters']['status'][$key] = array(
+      '#title' => $filter['title'],
+      '#type' => 'select',
+      '#multiple' => TRUE,
+      '#size' => 8,
+      '#options' => $filter['options'],
+    );
+    if (!empty($_SESSION['dblog_overview_filter'][$key])) {
+      $form['filters']['status'][$key]['#default_value'] = $_SESSION['dblog_overview_filter'][$key];
+    }
+  }
+
+  $form['filters']['actions'] = array(
+    '#type' => 'actions',
+    '#attributes' => array('class' => array('container-inline')),
+  );
+  $form['filters']['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Filter'),
+  );
+  if (!empty($_SESSION['dblog_overview_filter'])) {
+    $form['filters']['actions']['reset'] = array(
+      '#type' => 'submit',
+      '#value' => t('Reset')
+    );
+  }*/ 
+
+  return $form;
+}
+
+/**
+ * jsonpp - Pretty print JSON data
+ *
+ * In versions of PHP < 5.4.x, the json_encode() function does not yet provide a
+ * pretty-print option. In lieu of forgoing the feature, an additional call can
+ * be made to this function, passing in JSON text, and (optionally) a string to
+ * be used for indentation.
+ *
+ * @param string $json  The JSON data, pre-encoded
+ * @param string $istr  The indentation string
+ *
+ * @return string
+ */
+function jsonpp($json, $istr='  ')
+{
+    $result = '';
+    for($p=$q=$i=0; isset($json[$p]); $p++)
+    {
+        $json[$p] == '"' && ($p>0?$json[$p-1]:'') != '\\' && $q=!$q;
+        if(strchr('}]', $json[$p]) && !$q && $i--)
+        {
+            strchr('{[', $json[$p-1]) || $result .= "\n".str_repeat($istr, $i);
+        }
+        $result .= $json[$p];
+        if(strchr(',{[', $json[$p]) && !$q)
+        {
+            $i += strchr('{[', $json[$p])===FALSE?0:1;
+            strchr('}]', $json[$p+1]) || $result .= "\n".str_repeat($istr, $i);
+        }
+    }
+    return $result;
+}

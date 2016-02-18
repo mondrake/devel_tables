@@ -1,0 +1,8 @@
+type: module
+core: 8.x
+name: Devel tables
+description: 'Devel module extension to allow browsing database tables.'
+package: Development
+configure: devel_tables.settings
+dependencies:
+ - devel

@@ -1,0 +1,25 @@
+# devel_tables module routes
+
+devel_tables.settings:
+  path: '/admin/config/development/devel_tables'
+  defaults:
+    _form: '\Drupal\devel_tables\Form\SettingsForm'
+    _title: 'Devel tables'
+  requirements:
+    _permission: 'administer site configuration'
+
+devel_tables.database_tables:
+  path: '/ringo/starr1'
+  defaults:
+    _content: '\Drupal\devel_tables\Controller\TableListController::listTables'
+    _title: 'Devel tables'
+  requirements:
+    _permission: 'administer site configuration'
+    
+devel_tables.content:
+  path: '/ringo/starr'
+  defaults:
+    _controller: '\Drupal\devel_tables\Controller\HelloController::content'
+    _title: 'Hello World'
+  requirements:
+    _permission: 'access content'
