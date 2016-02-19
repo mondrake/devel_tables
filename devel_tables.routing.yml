@@ -8,18 +8,32 @@ devel_tables.settings:
   requirements:
     _permission: 'administer site configuration'
 
-devel_tables.database_tables:
-  path: '/ringo/starr1'
+devel_tables.table_records:
+  path: 'devel_tables/database/{connection}/table/{table}'
   defaults:
-    _content: '\Drupal\devel_tables\Controller\TableListController::listTables'
+    _controller: '\Drupal\devel_tables\Controller\HelloController::tableRecords'
     _title: 'Devel tables'
+  options:
+    _admin_route: TRUE
   requirements:
     _permission: 'administer site configuration'
-    
+
+devel_tables.record_edit:
+  path: 'devel_tables/database/{connection}/table/{table}/record/edit/{record}'
+  defaults:
+    _form: '\Drupal\devel_tables\Form\RecordEdit'
+    _title: 'Devel tables'
+  options:
+    _admin_route: TRUE
+  requirements:
+    _permission: 'administer site configuration'
+
 devel_tables.content:
   path: '/ringo/starr'
   defaults:
-    _controller: '\Drupal\devel_tables\Controller\HelloController::content'
-    _title: 'Hello World'
+    _controller: '\Drupal\devel_tables\Controller\HelloController::listTables'
+    _title: 'Devel tables'
+  options:
+    _admin_route: TRUE
   requirements:
-    _permission: 'access content'
+    _permission: 'administer site configuration'

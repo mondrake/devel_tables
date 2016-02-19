@@ -602,14 +602,14 @@ function _DTTextTrim($colProperties, $text)
     }
 
     // @todo a default setting if variable not defined
-    $DTVars = variable_get('devel_tables');
+    $config = \Drupal::config('devel_tables.settings');
     
     $text = strip_tags($text);
-    if (is_null($DTVars['listRecords']['limitTextTo'])) {
+    if (is_null($config->get('list_records.limit_text_to_chars'))) {
         return $text;
     }
-    if (strlen($text) > $DTVars['listRecords']['limitTextTo']) {
-        return substr($text, 0, $DTVars['listRecords']['limitTextTo'] - 3) . '...';
+    if (strlen($text) > $config->get('list_records.limit_text_to_chars')) {
+        return substr($text, 0, $config->get('list_records.limit_text_to_chars') - 3) . '...';
     }
     return $text;
 }  

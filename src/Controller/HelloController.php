@@ -7,183 +7,168 @@
 namespace Drupal\devel_tables\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Database\Database;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 
 class HelloController extends ControllerBase {
-  public function content() {
-    // @todo a default setting if variable not defined
-    $config = \Drupal::config('devel_tables.settings')->get();
-  
-    $DTTables = $this->DTGetTables($connection);
- 
-    // filter by module
-   // $build['DTtables_filter_form'] = drupal_get_form('DTtables_filter_form');
-//kpr($build);
+
+  public function listTables() {
+    $config = \Drupal::config('devel_tables.settings');
+    $connection = 'default'; // @todo session based connection
     
+    $tables = \Drupal::service('devel_tables.probe')->getTables($connection);
 
     // prepares table headers
     $header = array();
-    if ($config['list_tables']['display_prefix']) {
-        $header[] =  array('data' => t('Prefix'));
+    if ($config->get('list_tables.display_prefix')) {
+      $header[] =  array('data' => t('Prefix'));
     }
     $header[] =  array('data' => t('Table'), 'sort' => 'asc');
     $header[] =  array('data' => t('Module'));
     $header[] =  array('data' => t('Description'));
-    if ($config['list_tables']['display_row_count']) {
-        $header[] =  array('data' => t('# rows'));
+    if ($config->get('list_tables.display_row_count')) {
+      $header[] =  array('data' => t('# rows'));
     }
-    if ($config['list_tables']['display_collation']) {
-        $header[] =  array('data' => t('Collation'));
+    if ($config->get('list_tables.display_collation')) {
+      $header[] =  array('data' => t('Collation'));
     }
-    if ($config['list_tables']['display_storage_method']) {
-        $header[] =  array('data' => t('Storage'));
+    if ($config->get('list_tables.display_storage_method')) {
+      $header[] =  array('data' => t('Storage'));
     }
 
     // prepares table rows
     $rows = array();
-/*    foreach ($DTTables as $DTName => $DTProperties) {
-        $r = array();
-        if ($config['list_tables']['display_prefix']) {
-            $r[] = $DTProperties['prefix']; 
-        }
-        $r[] = l($DTProperties['name'], "devel_tables/tables/$connection/table/$DTName");
-        $r[] = $DTProperties['module'];
-        $r[] = $DTProperties['description'];
-        if ($config['list_tables']['display_row_count']) {
-            if (module_exists('format_number')) {
-                $r[] = '<div align=right>' . format_number($DTProperties['rowsCount'] . '</div>');
-            } else {
-                $r[] = '<div align=right>' . $DTProperties['rowsCount'] . '</div>';
-            }
-        }
-        if ($config['list_tables']['display_collation']) {
-            $r[] = $DTProperties['collation'];
-        }
-        if ($config['list_tables']['display_storage_method']) {
-            $r[] = $DTProperties['storageMethod'];
-        }
-        $rows[] = $r;
+    foreach ($tables as $table_name => $table_properties) {
+      $r = array();
+      if ($config->get('list_tables.display_prefix')) {
+        $r[] = $table_properties['prefix'];
+      }
+      $r[] = Link::fromTextAndUrl($table_properties['name'], new Url('devel_tables.table_records', [
+        'connection' => $connection,
+        'table' => $table_properties['full_name'],
+      ]));
+      $r[] = $table_properties['module'];
+      $r[] = $table_properties['description'];
+      if ($config->get('list_tables.display_row_count')) {
+        $r[] = $table_properties['rowsCount'];
+      }
+      if ($config->get('list_tables.display_collation')) {
+        $r[] = $table_properties['collation'];
+      }
+      if ($config->get('list_tables.display_storage_method')) {
+        $r[] = $table_properties['storageMethod'];
+      }
+      $rows[] = $r;
     }
-  */
+
     // render table
-/*    $output .= theme_table(
-        array(
-            'header' => $header,
-            'rows' => $rows,
-            'attributes' => array(),
-            'caption' => null,
-            'colgroups' => null,
-            'sticky' => true,
-            'empty' => t('No data has been collected.'),
-        )
-    );*/
-    $build['DTtables'] = array(
-        array(
-            '#theme' => 'table',   
-            '#header' => $header,
-            '#rows' => $rows,
-            '#attributes' => array(),
-            '#caption' => null,
-            '#colgroups' => null,
-            '#sticky' => true,
-            '#empty' => t('No data has been collected.'),
-        )
-    );
-    
-    //menu_set_active_trail();
-
+    $build[] = [
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#attributes' => array(),
+      '#caption' => null,
+      '#colgroups' => null,
+      '#sticky' => true,
+      '#empty' => t('No data has been collected.'),
+    ];
     return $build;
-/*    return array(
-        '#type' => 'markup',
-        '#markup' => $this->t('Hello, World!'),
-    );*/
   }
 
-  protected function DTGetTables($connection) {
-/*      $cg = cache_get("devel_tables:$connection:tableList");
-      if ($cg) {
-          $DTTables = $cg->data;
-      } else {*/
-          $DTTables = $this->DTTablesDataCollector($connection);
-/*          cache_set("devel_tables:$connection:tableList", $DTTables, 'cache' , CACHE_TEMPORARY);
-      }*/
-      return $DTTables;
-  }
+  public function tableRecords($connection, $table) {
 
-  protected function DTTablesDataCollector($connection) {
-      // builds Drupal table descriptions from Drupal schemas, and list of prefixes used
-      //$modules = db_query("SELECT * FROM {system} WHERE type = 'module' ORDER BY weight ASC, name ASC");
-      $modules = array_keys(system_get_info('module'));
-      $drupalTableDescriptions = array();
-      $prefixes = array();
-      foreach($modules as $module)    {
-          $schemaUnp = drupal_get_module_schema($module);
-          if (!empty($schemaUnp)) {
-              foreach($schemaUnp as $drupalTableName => $drupalTableProperties)    {
-                  $drupalTableDescriptions[$drupalTableName]['module'] = $module;
-                  if (isset($drupalTableProperties['description'])) {
-                      $drupalTableDescriptions[$drupalTableName]['description'] = $drupalTableProperties['description'];
+  //    $menuParent = menu_get_active_trail();
+  //    kpr($menuParent);
+
+      // @todo a default setting if variable not defined
+      $config = \Drupal::config('devel_tables.settings');
+
+      $obj = \Drupal::service('devel_tables.probe')->getTable($connection, $table);
+      $colDets = $obj->getColumnProperties();
+      $total = $obj->count();
+      $limit = 50;
+      $pageNo = pager_find_page(4); 
+      pager_default_initialize($total, $limit, 4);
+      $objs = $obj->listAll(NULL, $limit , $pageNo * $limit);
+
+      $header = array();
+      $header[] =  array('data' => t('#'));
+      foreach ($colDets as $c => $d)    {
+        $header[] = $c;
+/*          $header[] = theme('textimage_style_image', array(
+              'style_name' => 'verthead', 
+              'text'   => $c,
+              'alt'   => $c,
+              'title'   => $c,
+          ));*/
+      }
+
+      $rows = array();
+      $j = ($pageNo * $limit) + 1;
+      if ($objs) {
+          foreach ($objs as $a => $b) {        // $b is the record
+              $row = array();
+              $enc = base64_encode($b->primaryKeyString);
+              $row[] = $j;
+              foreach ($colDets as $c => $d)    {        // $c is the field, $d is the value
+                  if ($d['type'] == 'blob')    {  // @todo check a value exists
+                      switch ($config->get('list_records.display_lob')) {
+                      case 'label':
+                          $tmp = '*BLOB* ' . strlen($b->$c);
+                          break;
+                      case 'text':
+                      default:
+                          $tmp = _DTTextTrim($d, $b->$c);
+                          break;
+                      }
+                  } elseif ($c == 'timestamp' || $c == 'created'|| $c == 'expire') {
+                      $tmp = format_date((int) $b->$c, 'full');
                   } else {
-                      $drupalTableDescriptions[$drupalTableName]['description'] = t('*** No description available ***');
+                      $tmp = _DTTextTrim($d, $b->$c);
                   }
-                  $drupalTablePrefix = Database::getConnection()->tablePrefix($drupalTableName);
-                  $pfx = empty($drupalTablePrefix) ? '!null!' : $drupalTablePrefix;
-                  if (!isset($prefixes[$pfx])) {
-                      $prefixes[$pfx] = true;
+                  if ($d['primaryKey']) {
+                      $row[] = Link::fromTextAndUrl($tmp, new Url('devel_tables.record_edit', [
+                        'connection' => $connection,
+                        'table' => $table,
+                        'record' => $enc,
+                      ]));
+                  } else {
+                      $row[] = $tmp;
                   }
-                  $drupalTableDescriptions[$drupalTableName]['prefix'] = $drupalTablePrefix;
-                  //$drupalTableDescriptions[$drupalTableName]['fields'] = $drupalTableProperties['fields'];
               }
+              $rows[] = $row;
+              $j++;
           }
       }
 
-      // get all tables in the $connection database
-      $dto = new drupalTableObj($connection);
-      $tables = $dto->fetchAllTables();
+      //drupal_set_title($DTTables[$table]['name']);  
+      
+      //$build = t('Rows #: ') . $total;
+      
+      $build[] = [
+        '#type' => 'pager',
+        '#element' => 4,
+        /*'#quantity' => 9,
+        '#route_name' => '<current>',*/
+      ];
+      
+      $build[] = [
+        '#theme' => 'table',
+        '#header' => $header,
+        '#rows' => $rows,
+        '#attributes' => array(),
+        '#caption' => NULL,
+        '#colgroups' => NULL,
+        '#sticky' => TRUE,
+        '#empty' => t('No data has been collected.'),
+      ];
 
-      $tableList = array();
-      foreach ($tables as $table => $b) {
-          foreach ($prefixes as $prefix => $d) {
-              $tablePrefix = ($prefix == '!null!') ? null : $prefix;
-              if (!$tablePrefix or strpos($table, $tablePrefix) === 0) {
-                  if ($tablePrefix) {
-                      $unPrefixedTN = substr($table, strlen($tablePrefix), strlen($table) - strlen($tablePrefix)); 
-                  } else {
-                      $unPrefixedTN = $table; 
-                  }
-                  if (isset($drupalTableDescriptions[$unPrefixedTN])) {
-                      $row = array(
-                          'isDrupal' => true,
-                          'prefix' => $drupalTableDescriptions[$unPrefixedTN]['prefix'],
-                          'name' => $unPrefixedTN,
-                          'module' => isset($drupalTableDescriptions[$unPrefixedTN]['module']) ? $drupalTableDescriptions[$unPrefixedTN]['module'] : t('Drupal table ?'),
-                          'description' => isset($drupalTableDescriptions[$unPrefixedTN]['description']) ? $drupalTableDescriptions[$unPrefixedTN]['description'] : t('*** No description available ***'),
-                          'rowsCount' => $b['rows'],
-                          'collation' => $b['collation'],
-                          'storageMethod' => $b['storageMethod'],
-                      );
-                      $tableList[$table] = $row;
-                      break;
-                  } 
-              }
-          }
-          if (!isset($tableList[$table])) {
-              $row = array(
-                  'isDrupal' => false,
-                  'prefix' => null,
-                  'name' => $table,
-                  'module' => t('Drupal table ?'),
-                  'description' => t('*** No description available ***'),
-                  'rowsCount' => $b['rows'],
-                  'collation' => $b['collation'],
-                  'storageMethod' => $b['storageMethod'],
-              );
-              $tableList[$table] = $row;
-          }
-      }
-kint($tableList);
-      return $tableList;
+      // enhance breadcrumbs
+      //$breadcrumbs = drupal_get_breadcrumb();
+      //$breadcrumbs[] = l(t('Tables'),'devel_tables/tables'); 
+      //drupal_set_breadcrumb($breadcrumbs);
+      
+      return $build;
   }
 
 }

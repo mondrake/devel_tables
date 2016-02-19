@@ -1,5 +1,9 @@
 <?php
 
+namespace Drupal\devel_tables;
+
+use Drupal\Core\Cache\Cache;
+
 require_once "/home/mondrak1/private/dbol/Dbol.php";
  
 class drupalTableObj {
@@ -8,31 +12,31 @@ class drupalTableObj {
 	protected static $childObjs = array();
 	protected $diag = null;
 	protected $tableName;    
-    private $_connection;
+  private $_connection;
     
 	public function __construct($connection, $table = null, $DTTable = null) {	
-        $this->_connection = $connection;
-        if (!isset(self::$dbol[$connection]))     {
-			$variables = array(
-                'DBAL'	     		=> 'Drupal',
-            );
-			self::$dbol[$connection] = new dbol($variables);
-            db_set_active($connection);
-            self::$dbol[$connection]->mount();
-            db_set_active();
+    $this->_connection = $connection;
+    if (!isset(self::$dbol[$connection]))     {
+      $variables = array(
+        'DBAL' => 'Drupal8',
+      );
+      self::$dbol[$connection] = new \dbol($variables);
+      db_set_active($connection);
+      self::$dbol[$connection]->mount();
+      db_set_active();
 		}
 		//$this->diag = new MMDiag;
         if ($table) {
             $this->tableName = $connection . ':'. $table;
             if (!isset(self::$dbObj[$this->tableName])) {
                 // tries to get dbolObj from cache
-                $cg = cache_get("devel_tables:$connection:dbolObj:$table");
+                $cg = \Drupal::cache()->get("devel_tables:$connection:dbolObj:$table");
                 if ($cg) {
                     self::$dbObj[$this->tableName] = $cg->data;
                     return;
                 } else {
                 // if not cached, builds dbolObj
-                    $dbolObj = self::$dbObj[$this->tableName] = new dbolEntry;
+                    $dbolObj = self::$dbObj[$this->tableName] = new \dbolEntry;
                     $dbolObj->table = $table;
                     $dbolObj->tableProperties['auditLogLevel'] = 0;
                     $dbolObj->tableProperties['listOrder'] = null;
@@ -42,8 +46,8 @@ class drupalTableObj {
                         // $columnName has the field name
                         // $columnProperties has the field properties
                         // overrides comment with Drupal description
-                        if ($DTTable['isDrupal']) {
-                            $schemaUnp = drupal_get_schema_unprocessed($DTTable['module']);
+                        if ($DTTable['isDrupal'] && $DTTable['module'] !== '???') {
+                            $schemaUnp = drupal_get_module_schema($DTTable['module']);
                             self::$dbol[$this->_connection]->setColumnProperty(
                                 $dbolObj, 
                                 array($columnName), 
@@ -83,7 +87,7 @@ class drupalTableObj {
                         }
                     }
                     //kpr($dbolObj); die;
-                    cache_set("devel_tables:$connection:dbolObj:$table", $dbolObj, 'cache' , CACHE_TEMPORARY);
+                    \Drupal::cache()->set("devel_tables:$connection:dbolObj:$table", $dbolObj, Cache::PERMANENT); // @todo temporary
                 }
             }
         }
@@ -102,8 +106,7 @@ class drupalTableObj {
         return $tables;
 	}
 
-    public function getTablePrefix($table)
-    {
+  public function getTablePrefix($table) {
         return $table; //self::$dbol->getTablePrefix($table);
     }
 	

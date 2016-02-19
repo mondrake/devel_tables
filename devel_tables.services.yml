@@ -1,0 +1,3 @@
+services:
+  devel_tables.probe:
+    class: Drupal\devel_tables\DevelTablesProbe
