@@ -41,7 +41,7 @@ class DevelTablesProbe {
       $module_schema = drupal_get_module_schema($module);
       if (!empty($module_schema)) {
         foreach($module_schema as $table_name => $table_properties) {
-          $schema_tables[$table_name]['module'] = $module;
+          $schema_tables[$table_name]['module'] = 'module/' . $module;
           if (isset($table_properties['description'])) {
             $schema_tables[$table_name]['description'] = $table_properties['description'];
           } else {

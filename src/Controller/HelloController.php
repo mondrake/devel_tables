@@ -13,6 +13,12 @@ use Drupal\Core\Url;
 class HelloController extends ControllerBase {
 
   public function listTables() {
+/*$xxx = \Drupal::entityManager()->getStorage('node');
+kint($xxx->getBaseTable());
+kint($xxx->getDataTable());
+kint($xxx->getTableMapping());
+kint($xxx->getFieldStorageDefinitions());
+kint($xxx->getQuery());*/
     $config = \Drupal::config('devel_tables.settings');
     $connection = 'default'; // @todo session based connection
     

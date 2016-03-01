@@ -9,7 +9,7 @@ devel_tables.settings:
     _permission: 'administer site configuration'
 
 devel_tables.table_records:
-  path: 'devel_tables/database/{connection}/table/{table}'
+  path: '/devel_tables/database/{connection}/table/{table}'
   defaults:
     _controller: '\Drupal\devel_tables\Controller\HelloController::tableRecords'
     _title: 'Devel tables'
@@ -19,7 +19,7 @@ devel_tables.table_records:
     _permission: 'administer site configuration'
 
 devel_tables.record_edit:
-  path: 'devel_tables/database/{connection}/table/{table}/record/edit/{record}'
+  path: '/devel_tables/database/{connection}/table/{table}/record/edit/{record}'
   defaults:
     _form: '\Drupal\devel_tables\Form\RecordEdit'
     _title: 'Devel tables'
@@ -29,7 +29,7 @@ devel_tables.record_edit:
     _permission: 'administer site configuration'
 
 devel_tables.content:
-  path: '/ringo/starr'
+  path: '/devel_tables'
   defaults:
     _controller: '\Drupal\devel_tables\Controller\HelloController::listTables'
     _title: 'Devel tables'
