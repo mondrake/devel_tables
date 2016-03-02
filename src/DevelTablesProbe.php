@@ -33,9 +33,10 @@ class DevelTablesProbe {
   }
 
   protected function dbSchemaDataCollector($connection) {
-    // builds Drupal table descriptions from Drupal schemas, and list of prefixes used
-    $modules = array_keys(system_get_info('module'));
     $schema_tables = [];
+
+    // Builds Drupal table descriptions from Drupal module schemae, and list of prefixes used
+    $modules = array_keys(system_get_info('module'));
     $prefixes = array();
     foreach($modules as $module) {
       $module_schema = drupal_get_module_schema($module);
@@ -54,6 +55,18 @@ class DevelTablesProbe {
           }
           $schema_tables[$table_name]['prefix'] = $table_prefix;
           $schema_tables[$table_name]['fields'] = $table_properties['fields'];
+        }
+      }
+    }
+
+    // Builds Drupal table descriptions from Drupal entities.
+    $table_prefix = Database::getConnection()->tablePrefix();
+    $entities = \Drupal::entityTypeManager()->getDefinitions();
+    foreach($entities as $entity_name => $entity) {
+      foreach([$entity->getBaseTable(), $entity->getDataTable(), $entity->getRevisionDataTable(), $entity->getRevisionTable()] as $table_name) {
+        if ($table_name) {
+          $schema_tables[$table_name]['module'] = 'entity/' . $entity_name;
+          $schema_tables[$table_name]['prefix'] = $table_prefix;
         }
       }
     }
@@ -81,7 +94,7 @@ class DevelTablesProbe {
               'prefix' => $schema_tables[$unPrefixedTN]['prefix'],
               'name' => $unPrefixedTN,
               'module' => isset($schema_tables[$unPrefixedTN]['module']) ? $schema_tables[$unPrefixedTN]['module'] : t('Drupal table ?'),
-              'description' => isset($schema_tables[$unPrefixedTN]['description']) ? $schema_tables[$unPrefixedTN]['description'] : t('*** No description available ***'),
+              'description' => isset($schema_tables[$unPrefixedTN]['description']) ? $schema_tables[$unPrefixedTN]['description'] : NULL,
               'rowsCount' => $table_db_details['rows'],
               'collation' => $table_db_details['collation'],
               'storageMethod' => $table_db_details['storageMethod'],
@@ -127,6 +140,11 @@ class DevelTablesProbe {
           );
         }
         $table_list[$table_name] = $row;
+      }
+      else {
+        if (empty($table_list[$table_name]['description']) && $table_db_details['description']) {
+          $table_list[$table_name]['description'] = $table_db_details['description'];
+        }
       }
     }
 
