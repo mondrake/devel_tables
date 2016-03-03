@@ -1,0 +1,8 @@
+{
+    "name": "drupal/devel_tables",
+    "type": "drupal-module",
+    "description": "Browse database tables",
+    "require": {
+        "doctrine/dbal": "v2.5.4"
+    }
+}
