@@ -16,7 +16,7 @@ class HelloController extends ControllerBase {
     $config = \Drupal::config('devel_tables.settings');
     $connection = 'default'; // @todo session based connection
     
-    $tables = \Drupal::service('devel_tables.probe')->getTables($connection);
+    $tables = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection)->getTables();
 
     // prepares table headers
     $header = array();
@@ -29,12 +29,6 @@ class HelloController extends ControllerBase {
     if ($config->get('list_tables.display_row_count')) {
       $header[] =  array('data' => t('# rows'));
     }
-    if ($config->get('list_tables.display_collation')) {
-      $header[] =  array('data' => t('Collation'));
-    }
-    if ($config->get('list_tables.display_storage_method')) {
-      $header[] =  array('data' => t('Storage'));
-    }
 
     // prepares table rows
     $rows = array();
@@ -43,20 +37,14 @@ class HelloController extends ControllerBase {
       if ($config->get('list_tables.display_prefix')) {
         $r[] = $table_properties['prefix'];
       }
-      $r[] = Link::fromTextAndUrl($table_properties['name'], new Url('devel_tables.table_records', [
+      $r[] = Link::fromTextAndUrl($table_name, new Url('devel_tables.table_records', [
         'connection' => $connection,
-        'table' => $table_properties['full_name'],
+        'table' => $table_name,
       ]));
       $r[] = $table_properties['module'];
       $r[] = $table_properties['description'];
       if ($config->get('list_tables.display_row_count')) {
         $r[] = $table_properties['rowsCount'];
-      }
-      if ($config->get('list_tables.display_collation')) {
-        $r[] = $table_properties['collation'];
-      }
-      if ($config->get('list_tables.display_storage_method')) {
-        $r[] = $table_properties['storageMethod'];
       }
       $rows[] = $r;
     }
