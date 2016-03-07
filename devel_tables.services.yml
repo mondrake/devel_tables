@@ -1,3 +1,6 @@
 services:
   devel_tables.probe:
     class: Drupal\devel_tables\DevelTablesProbe
+  plugin.manager.devel_tables.driver:
+    class: Drupal\devel_tables\Plugin\DevelTablesDriverPluginManager
+    parent: default_plugin_manager

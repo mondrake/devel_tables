@@ -20,23 +20,21 @@ class DevelTablesProbe {
   protected $connectionType;
   protected $connectionKey;
   protected $connection;
+  protected $develTablesDriver;
 
   public function connectDrupalDb($connection_key = 'default') {
     $this->connectionType = 'drupal';
     $this->connectionKey = $connection_key;
-    $config = new Configuration();
-    $options = Database::getConnectionInfo($connection_key);
 
-    // @todo make it dependent on driver + deal with master/slave setups
-    $connection_parms = [
-      'dbname' => $options['default']['database'],
-      'user' => $options['default']['username'],
-      'password' => $options['default']['password'],
-      'host' => $options['default']['host'],
-      'driver' => 'pdo_mysql',
-      'charset' => 'utf8',
-    ];
-    $this->connection = DriverManager::getConnection($connection_parms, $config);
+    // Get Drupal connection info.
+    $drupal_connection = Database::getConnectionInfo($connection_key)['default']; // @todo allow selecting replicas?
+
+    // Get translated DBAL connection info from the mapper plugin.
+    $this->develTablesDriver = \Drupal::service('plugin.manager.devel_tables.driver')->createInstance($drupal_connection['driver']);
+    $connection_parms = $this->develTablesDriver->getConnectionInfo($drupal_connection);
+
+    // Connect to the database via DBAL.
+    $this->connection = DriverManager::getConnection($connection_parms, new Configuration());
     return $this;
   }
 
@@ -45,7 +43,7 @@ class DevelTablesProbe {
       $tables = $cache->data;
     }
     else {
-      $tables = $this->dbSchemaDataCollector();
+      $tables = $this->tableDataCollector();
       \Drupal::cache()->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList", $tables, Cache::PERMANENT); // @todo temporary
     }
     return $tables;
@@ -56,17 +54,12 @@ class DevelTablesProbe {
     return new drupalTableObj($connection, $table, $tables[$table]);
   }
 
-  protected function dbSchemaDataCollector() {
+  protected function tableDataCollector() {
     // Get all tables in the connected database.
     $dbal_tables = $this->connection->getSchemaManager()->listTables();
 
     // Get extra table information that DBAL does not provide.
-    // @todo generalise for other db
-    $recs = $this->connection->query("show table status")->fetchAll();
-    $db_tables_extra = [];
-    foreach ($recs as $rec) {
-      $db_tables_extra[$rec['Name']] = $rec;
-    }
+    $db_tables_extra = $this->develTablesDriver->getExtraTableInfo($this->connection, $dbal_tables);
 
     // Build table information provided by Drupal schema system.
     $schema_tables = [];
@@ -118,8 +111,8 @@ class DevelTablesProbe {
             'prefix' => $table_prefix,
             'base_name' => $base_table_name,
             'module' => empty($schema_tables[$table_name]['module']) ? '???' : $schema_tables[$table_name]['module'],
-            'description' => empty($db_tables_extra[$table_name]['Comment']) ? t('*** No description available ***'): $db_tables_extra[$table_name]['Comment'],
-            'rowsCount' => $db_tables_extra[$table_name]['Rows'],
+            'description' => $db_tables_extra[$table_name]['_description'],
+            'rowsCount' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
             'extra' => $db_tables_extra[$table_name],
           );
@@ -130,8 +123,8 @@ class DevelTablesProbe {
             'prefix' => NULL,
             'base_name' => $table_name,
             'module' => empty($schema_tables[$table_name]['module']) ? '???' : $schema_tables[$table_name]['module'],
-            'description' => empty($db_tables_extra[$table_name]['Comment']) ? t('*** No description available ***'): $db_tables_extra[$table_name]['Comment'],
-            'rowsCount' => $db_tables_extra[$table_name]['Rows'],
+            'description' => $db_tables_extra[$table_name]['_description'],
+            'rowsCount' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
             'extra' => $db_tables_extra[$table_name],
           );
