@@ -10,7 +10,7 @@ interface DevelTablesDriverInterface {
   /**
    * @todo
    */
-  public function getConnectionInfo(array $drupal_connection);
+  public function getConnectionInfo(array $drupal_connection_info);
 
   /**
    * @todo

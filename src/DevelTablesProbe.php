@@ -9,6 +9,7 @@ namespace Drupal\devel_tables;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Database\Database;
+use Drupal\devel_tables\Plugin\DevelTablesDriverPluginManager;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\DriverManager;
 
@@ -17,21 +18,48 @@ use Doctrine\DBAL\DriverManager;
  */
 class DevelTablesProbe {
 
+  /**
+   * The cache service.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected $cache;
+
+  /**
+   * The devel_tables driver plugin manager.
+   *
+   * @var \Drupal\devel_tables\Plugin\DevelTablesDriverPluginManager
+   */
+  protected $develTablesDriverManager;
+
   protected $connectionType;
   protected $connectionKey;
   protected $connection;
   protected $develTablesDriver;
+
+  /**
+   * Constructs a DevelTablesProbe object.
+   *
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cache_service
+   *   The cache service.
+   * @param \Drupal\devel_tables\Plugin\DevelTablesDriverPluginManager $driver_plugin_manager
+   *   The cache service.
+   */
+  public function __construct(CacheBackendInterface $cache_service, DevelTablesDriverPluginManager $driver_plugin_manager) {
+    $this->cache = $cache_service;
+    $this->develTablesDriverManager = $driver_plugin_manager;
+  }
 
   public function connectDrupalDb($connection_key = 'default') {
     $this->connectionType = 'drupal';
     $this->connectionKey = $connection_key;
 
     // Get Drupal connection info.
-    $drupal_connection = Database::getConnectionInfo($connection_key)['default']; // @todo allow selecting replicas?
+    $drupal_connection_info = Database::getConnectionInfo($connection_key)['default']; // @todo allow selecting replicas?
 
-    // Get translated DBAL connection info from the mapper plugin.
-    $this->develTablesDriver = \Drupal::service('plugin.manager.devel_tables.driver')->createInstance($drupal_connection['driver']);
-    $connection_parms = $this->develTablesDriver->getConnectionInfo($drupal_connection);
+    // Get DBAL connection info from the mapper plugin.
+    $this->develTablesDriver = $this->develTablesDriverManager->createInstance($drupal_connection_info['driver']);
+    $connection_parms = $this->develTablesDriver->getConnectionInfo($drupal_connection_info);
 
     // Connect to the database via DBAL.
     $this->connection = DriverManager::getConnection($connection_parms, new Configuration());
@@ -39,19 +67,14 @@ class DevelTablesProbe {
   }
 
   public function getTables() {
-    if ($cache = \Drupal::cache()->get("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList")) {
+    if ($cache = $this->cache->get("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList")) {
       $tables = $cache->data;
     }
     else {
       $tables = $this->tableDataCollector();
-      \Drupal::cache()->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList", $tables, Cache::PERMANENT); // @todo temporary
+      $this->cache->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList", $tables, Cache::PERMANENT); // @todo temporary
     }
     return $tables;
-  }
-
-  public function getTable($connection, $table) {
-    $tables = $this->getTables($connection);
-    return new drupalTableObj($connection, $table, $tables[$table]);
   }
 
   protected function tableDataCollector() {
@@ -110,9 +133,9 @@ class DevelTablesProbe {
             'isDrupal' => true,
             'prefix' => $table_prefix,
             'base_name' => $base_table_name,
-            'module' => empty($schema_tables[$table_name]['module']) ? '???' : $schema_tables[$table_name]['module'],
+            'provider' => $schema_tables[$table_name]['module'],
             'description' => $db_tables_extra[$table_name]['_description'],
-            'rowsCount' => $db_tables_extra[$table_name]['_rows'],
+            'rows_count' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
             'extra' => $db_tables_extra[$table_name],
           );
@@ -122,9 +145,9 @@ class DevelTablesProbe {
             'isDrupal' => true,
             'prefix' => NULL,
             'base_name' => $table_name,
-            'module' => empty($schema_tables[$table_name]['module']) ? '???' : $schema_tables[$table_name]['module'],
+            'provider' => $schema_tables[$table_name]['module'],
             'description' => $db_tables_extra[$table_name]['_description'],
-            'rowsCount' => $db_tables_extra[$table_name]['_rows'],
+            'rows_count' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
             'extra' => $db_tables_extra[$table_name],
           );
@@ -132,6 +155,11 @@ class DevelTablesProbe {
     }
     ksort($table_list);
     return $table_list;
+  }
+
+  public function getTable($connection, $table) {
+    $tables = $this->getTables($connection);
+    return new drupalTableObj($connection, $table, $tables[$table]);
   }
 
 }

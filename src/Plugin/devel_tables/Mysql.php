@@ -19,13 +19,13 @@ class Mysql extends PluginBase implements DevelTablesDriverInterface {
   /**
    * @todo
    */
-  public function getConnectionInfo(array $drupal_connection) {
+  public function getConnectionInfo(array $drupal_connection_info) {
     return [
-      'dbname' => $drupal_connection['database'],
-      'user' => $drupal_connection['username'],
-      'password' => $drupal_connection['password'],
-      'host' => $drupal_connection['host'],
-      'port' => $drupal_connection['port'],
+      'dbname' => $drupal_connection_info['database'],
+      'user' => $drupal_connection_info['username'],
+      'password' => $drupal_connection_info['password'],
+      'host' => $drupal_connection_info['host'],
+      'port' => $drupal_connection_info['port'],
       'driver' => 'pdo_mysql',
       'charset' => 'utf8',
     ];
@@ -39,8 +39,8 @@ class Mysql extends PluginBase implements DevelTablesDriverInterface {
     $extra = [];
     foreach ($recs as $rec) {
       $extra[$rec['Name']] = $rec;
-      $extra[$rec['Name']]['_rows'] = empty($rec['Rows']) ? NULL : $rec['Rows'];
-      $extra[$rec['Name']]['_description'] = empty($rec['Comment']) ? t('*** No description available ***') : $rec['Comment'];
+      $extra[$rec['Name']]['_rows'] = $rec['Rows'];
+      $extra[$rec['Name']]['_description'] = $rec['Comment'];
     }
     return $extra;
   }

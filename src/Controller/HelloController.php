@@ -24,7 +24,7 @@ class HelloController extends ControllerBase {
       $header[] =  array('data' => t('Prefix'));
     }
     $header[] =  array('data' => t('Table'), 'sort' => 'asc');
-    $header[] =  array('data' => t('Module'));
+    $header[] =  array('data' => t('Provided by'));
     $header[] =  array('data' => t('Description'));
     if ($config->get('list_tables.display_row_count')) {
       $header[] =  array('data' => t('# rows'));
@@ -41,10 +41,10 @@ class HelloController extends ControllerBase {
         'connection' => $connection,
         'table' => $table_name,
       ]));
-      $r[] = $table_properties['module'];
+      $r[] = $table_properties['provider'];
       $r[] = $table_properties['description'];
       if ($config->get('list_tables.display_row_count')) {
-        $r[] = $table_properties['rowsCount'];
+        $r[] = $table_properties['rows_count'];
       }
       $rows[] = $r;
     }
