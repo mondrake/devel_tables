@@ -15,7 +15,6 @@ class HelloController extends ControllerBase {
   public function listTables() {
     $config = \Drupal::config('devel_tables.settings');
     $connection = 'default'; // @todo session based connection
-    
     $tables = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection)->getTables();
 
     // prepares table headers
@@ -41,7 +40,7 @@ class HelloController extends ControllerBase {
         'connection' => $connection,
         'table' => $table_name,
       ]));
-      $r[] = $table_properties['provider'];
+      $r[] = isset($table_properties['drupal']['provider']) ? $table_properties['drupal']['provider'] : NULL;
       $r[] = $table_properties['description'];
       if ($config->get('list_tables.display_row_count')) {
         $r[] = $table_properties['rows_count'];
@@ -64,21 +63,18 @@ class HelloController extends ControllerBase {
   }
 
   public function tableRecords($connection, $table) {
-
-  //    $menuParent = menu_get_active_trail();
-  //    kpr($menuParent);
-
       // @todo a default setting if variable not defined
       $config = \Drupal::config('devel_tables.settings');
-
-      $obj = \Drupal::service('devel_tables.probe')->getTable($connection, $table);
-      $colDets = $obj->getColumnProperties();
-      $total = $obj->count();
+      $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
+      $table_info = $probe->getTable($table);
+      $colDets = $table_info['DBAL']->getColumns();
+kint($colDets);
+      $total = $probe->getTableRowsCount($table);
       $limit = 50;
       $pageNo = pager_find_page(4); 
       pager_default_initialize($total, $limit, 4);
-      $objs = $obj->listAll(NULL, $limit , $pageNo * $limit);
-
+      $records = $probe->getTableRows($table, NULL, $limit , $pageNo * $limit);
+kint($records);
       $header = array();
       $header[] =  array('data' => t('#'));
       foreach ($colDets as $c => $d)    {
@@ -93,8 +89,8 @@ class HelloController extends ControllerBase {
 
       $rows = array();
       $j = ($pageNo * $limit) + 1;
-      if ($objs) {
-          foreach ($objs as $a => $b) {        // $b is the record
+      if ($records) {
+          foreach ($records as $a => $b) {        // $b is the record
               $row = array();
               $enc = base64_encode($b->primaryKeyString);
               $row[] = $j;

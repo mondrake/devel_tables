@@ -1,13 +1,9 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\devel_tables\DevelTablesProbe.
- */
-
 namespace Drupal\devel_tables;
 
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Database\Database;
 use Drupal\devel_tables\Plugin\DevelTablesDriverPluginManager;
 use Doctrine\DBAL\Configuration;
@@ -94,7 +90,7 @@ class DevelTablesProbe {
       $module_schema = drupal_get_module_schema($module);
       if (!empty($module_schema)) {
         foreach($module_schema as $table_name => $table_properties) {
-          $schema_tables[$table_name]['module'] = 'module/' . $module;
+          $schema_tables[$table_name]['provider'] = 'module/' . $module;
           if (isset($table_properties['description'])) {
             $schema_tables[$table_name]['description'] = $table_properties['description'];
           } else {
@@ -117,7 +113,7 @@ class DevelTablesProbe {
     foreach($entities as $entity_name => $entity) {
       foreach([$entity->getBaseTable(), $entity->getDataTable(), $entity->getRevisionDataTable(), $entity->getRevisionTable()] as $table_name) {
         if ($table_name) {
-          $schema_tables[$table_name]['module'] = 'entity/' . $entity_name;
+          $schema_tables[$table_name]['provider'] = 'entity/' . $entity_name;
           $schema_tables[$table_name]['prefix'] = $table_prefix;
         }
       }
@@ -130,36 +126,66 @@ class DevelTablesProbe {
         if (strpos($table_name, $table_prefix) === 0) {
           $base_table_name = substr($table_name, strlen($table_prefix), strlen($table_name) - strlen($table_prefix));
           $table_list[$table_name] = array(
-            'isDrupal' => true,
             'prefix' => $table_prefix,
             'base_name' => $base_table_name,
-            'provider' => $schema_tables[$table_name]['module'],
             'description' => $db_tables_extra[$table_name]['_description'],
             'rows_count' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
             'extra' => $db_tables_extra[$table_name],
           );
+          if (isset($schema_tables[$base_table_name])) {
+            $table_list[$table_name]['drupal'] = $schema_tables[$base_table_name];
+          }
         }
         else {
           $table_list[$table_name] = array(
-            'isDrupal' => true,
             'prefix' => NULL,
             'base_name' => $table_name,
-            'provider' => $schema_tables[$table_name]['module'],
             'description' => $db_tables_extra[$table_name]['_description'],
             'rows_count' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
             'extra' => $db_tables_extra[$table_name],
           );
+          if (isset($schema_tables[$base_table_name])) {
+            $table_list[$table_name]['drupal'] = $schema_tables[$base_table_name];
+          }
         }
     }
     ksort($table_list);
     return $table_list;
   }
 
-  public function getTable($connection, $table) {
-    $tables = $this->getTables($connection);
-    return new drupalTableObj($connection, $table, $tables[$table]);
+  public function getTable($table) {
+    $tables = $this->getTables();
+    return $tables[$table];
+  }
+
+  public function getTableRowsCount($table) {
+    $res = $this->connection->createQueryBuilder()
+      ->select('count(*) as rows_count')
+      ->from($table)
+      ->execute()
+      ->fetch();
+    return $res['row_count'];
+  }
+
+  public function getTableRows($table, $whereClause = NULL, $limit = NULL, $offset = NULL) {
+    $query_builder = $this->connection->createQueryBuilder()
+      ->select('*')
+      ->from($table);
+    if ($whereClause) {
+      $query_builder->where($whereClause);
+    }
+    if ($offset) {
+      $query_builder->setFirstResult($offset);
+    }
+    if ($limit) {
+      $query_builder->setMaxResults($limit);
+    }
+    $res = $query_builder
+      ->execute()
+      ->fetchAll();
+    return $res;
   }
 
 }
