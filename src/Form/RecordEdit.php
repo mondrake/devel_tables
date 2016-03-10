@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\devel_tables\Form\RecordEdit.
- */
-
 namespace Drupal\devel_tables\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -28,14 +23,16 @@ class RecordEdit extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, $connection = NULL, $table = NULL, $record = NULL) {
-
+    // @todo a default setting if variable not defined
     $config = \Drupal::config('devel_tables.settings');
+    $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
+    $table_info = $probe->getTable($table);
+    $columns = $table_info['DBAL']->getColumns();
+    $primary_key_string = base64_decode($record);
+    //$primary_key = $probe->stringToPk($table_info, $record);
+    $rec = $probe->getTableRow($table, $table_info, $primary_key_string);
 
-    $obj = \Drupal::service('devel_tables.probe')->getTable($connection, $table);
-    $colDets = $obj->getColumnProperties();
-    $obj->read(base64_decode($record));
-
-    $form['#title'] = $table . ' - ' . $obj->primaryKeyString; // @todo too much on title
+    $form['#title'] = $table . ' - ' . $primary_key_string; // @todo too much on title
 
     $form['tableRec'] = [
       '#theme' => 'table',
@@ -47,39 +44,63 @@ class RecordEdit extends FormBase {
 
     $tabRow = 0;
     $rows = [];
-    foreach ($colDets as $a => $b) {
+    foreach ($columns as $a => $b) {
       $row = [];
 
-      // $a has the field name
-      // $b has the field properties
+      // $a has the column name
+      // $b has the column object
 
       // Determines field type description.
-      switch ($b['type']) {
-        case 'boolean':
+      $type_name = $b->getType()->getName();
+      switch ($type_name) {
+        // Integer DBAL types.
+        case 'smallint':
         case 'integer':
-        case 'time':
+        case 'bigint':
+        // Decimal DBAL types.
+        case 'decimal':
+        case 'float':
+        // Bit DBAL types.
+        case 'boolean':
+        // Date and time DBAL types.
         case 'date':
-        case 'timestamp':
-          $field_type_description = $b['type'];
+        case 'datetime':
+        case 'datetimetz':
+        case 'time':
+        case 'dateinterval':
+          $field_type_description = $type_name;
           break;
+
+        // String DBAL types.
+        case 'string':
         case 'text':
+        case 'guid':
+        // Binary DBAL types.
+        case 'binary':
         case 'blob':
-          if($b['length'])
-            $field_type_description = $b['type'] . '/' . $b['length'];
+        // Array DBAL types.
+        case 'array':
+        case 'simple_array':
+        case 'json_array':
+        // Object DBAL types.
+        case 'object':
+          if($b->getLength())
+            $field_type_description = $type_name . '/' . $b->getLength();
           else
-            $field_type_description = $b['type'];
+            $field_type_description = $type_name;
           break;
+
         default:
-          $field_type_description = $b['type'] . '/' . $b['length'];
+          $field_type_description = $type_name . '/' . $b->getLength();
       }
-      if ($b['comment'] || $b['nativeComment']) {
-        $field_type_description .= " - " . (!empty($b['comment']) ? $b['comment'] : $b['nativeComment']);
+      if ($comment = $b->getComment()) { // @todo drupal comments'] || $b['nativeComment']) {
+        $field_type_description .= " - " . $comment;
       }
 
       // Determines suffix for timestamp @todo make this abstract checking on int value
       $suffix_desc = null;
       if ($a == 'timestamp' || $a == 'created')    {
-        $suffix_desc .= format_date((int) $obj->$a, 'full');
+        $suffix_desc .= format_date((int) $rec[$a], 'full');
       }
 
       // output field name
@@ -94,27 +115,27 @@ class RecordEdit extends FormBase {
         '#description' => $field_type_description,
         '#field_suffix' => $suffix_desc,
       ];
-      if (!$b['editable']) {
-        $tmpx['#markup'] = $obj->$a;
+      if (FALSE) { //!$b['editable']) {
+        $tmpx['#markup'] = $rec[$a];
       }
-      else if ($b['type'] == 'blob') {
+      else if ($type_name == 'blob') {
         if ($config->get('list_records.kint_blob')) {
-          $tmp = @unserialize($obj->$a);
+          $tmp = @unserialize($rec[$a]);
           if (!$tmp) {
-            $tmp = json_decode($obj->$a, TRUE);
+            $tmp = json_decode($rec[$a], TRUE);
           }
           if (!$tmp) {
-            $tmp = jsonpp($obj->$a);
+            $tmp = jsonpp($rec[$a]);
           }
         }
         else {
-          $tmp = strtr($obj->$a, array('{' => "\n\t", '}' => "\n"));
+          $tmp = strtr($rec[$a], array('{' => "\n\t", '}' => "\n"));
         }
         $tmpx['#markup'] = kdevel_print_object($tmp);
       }
       else {
-        $tmpx['#default_value'] = $obj->$a;
-        switch ($b['type']) {
+        $tmpx['#default_value'] = $rec[$a];
+        switch ($type_name) {
           case 'boolean':
             $tmpx['#type'] = 'checkbox';
             break;
@@ -133,11 +154,11 @@ class RecordEdit extends FormBase {
             break;
           case 'text':
           case 'blob':
-            if($b['length']) {
+            if($b->getLength()) {
               $tmpx['#type'] = 'textfield';
-              $size = ($b['length'] > 60) ? 60 : $b['length'];
+              $size = ($b->getLength() > 60) ? 60 : $b->getLength();
               $tmpx['#size'] = $size;
-              $tmpx['#maxlength'] = $b['length'];
+              $tmpx['#maxlength'] = $b->getLength();
             }
             else    {
               $tmpx['#type'] = 'textarea';
@@ -147,9 +168,9 @@ class RecordEdit extends FormBase {
             break;
           default:
             $tmpx['#type'] = 'textfield';
-            $size = ($b['length'] > 60) ? 60 : $b['length'];
+            $size = ($b->getLength() > 60) ? 60 : $b->getLength();
             $tmpx['#size'] = $size;
-            $tmpx['#maxlength'] = $b['length'];
+            $tmpx['#maxlength'] = $b->getLength();
         }
 /*        $row[] = [
           'data' => $tmpx,

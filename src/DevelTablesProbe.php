@@ -197,6 +197,28 @@ class DevelTablesProbe {
     return $res;
   }
 
+  public function getTableRow($table, $table_info, $primary_key_string) {
+    $primary_key = $this->pkStringToArray($table_info, $primary_key_string);
+    $query_builder = $this->connection->createQueryBuilder()
+      ->select('*')
+      ->from($table);
+    $j = 0;
+    foreach ($primary_key as $column => $value) {
+      if (isset($prepared_where)) {
+        $prepared_where .= ' and ' . $column . ' = ? ';
+      } else {
+        $prepared_where = $column . ' = ? ';
+      }
+      $query_builder->setParameter($j, $value);
+      $j++;
+    }
+    $query_builder->where($prepared_where);
+    $res = $query_builder
+      ->execute()
+      ->fetch();
+    return $res;
+  }
+
   public function pkToString($table_info, $record) {
     foreach ($table_info['primary_key'] as $c) {
       if (isset($record[$c])) {
@@ -211,6 +233,18 @@ class DevelTablesProbe {
       else {
         $res = $tok;
       }
+    }
+    return $res;
+  }
+
+  public function pkStringToArray($table_info, $primary_key_string) {
+    $attrs = explode(static::PK_SEPARATOR, $primary_key_string);
+    $j = 0;
+    $res = [];
+    foreach ($table_info['primary_key'] as $c) {
+      $e = str_replace(static::PK_SEPARATOR_REPLACE, static::PK_SEPARATOR, $attrs[$j]); // @todo unicode
+      $res[$c] = $e;
+      $j++;
     }
     return $res;
   }
