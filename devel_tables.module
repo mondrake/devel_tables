@@ -7,9 +7,9 @@
  * More soon...
  */
 
-function _DTTextTrim($colProperties, $text)
+function _DTTextTrim($dontdoit, $text)
 {
-    if ($colProperties['primaryKey']) {
+    if ($dontdoit) {
         return $text;
     }
 

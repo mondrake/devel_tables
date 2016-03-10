@@ -15,6 +15,12 @@ use Doctrine\DBAL\DriverManager;
 class DevelTablesProbe {
 
   /**
+   * Constants @todo.
+   */
+  const PK_SEPARATOR = '|';
+  const PK_SEPARATOR_REPLACE = '#&!vbar!&#';
+
+  /**
    * The cache service.
    *
    * @var \Drupal\Core\Cache\CacheBackendInterface
@@ -128,6 +134,7 @@ class DevelTablesProbe {
           $table_list[$table_name] = array(
             'prefix' => $table_prefix,
             'base_name' => $base_table_name,
+            'primary_key' => array_combine($dbal_table->getPrimaryKey()->getColumns(), $dbal_table->getPrimaryKey()->getColumns()),
             'description' => $db_tables_extra[$table_name]['_description'],
             'rows_count' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
@@ -141,6 +148,7 @@ class DevelTablesProbe {
           $table_list[$table_name] = array(
             'prefix' => NULL,
             'base_name' => $table_name,
+            'primary_key' => array_combine($dbal_table->getPrimaryKey()->getColumns(), $dbal_table->getPrimaryKey()->getColumns()),
             'description' => $db_tables_extra[$table_name]['_description'],
             'rows_count' => $db_tables_extra[$table_name]['_rows'],
             'DBAL' => $dbal_table,
@@ -156,6 +164,7 @@ class DevelTablesProbe {
   }
 
   public function getTable($table) {
+  // @todo cache single table
     $tables = $this->getTables();
     return $tables[$table];
   }
@@ -166,7 +175,7 @@ class DevelTablesProbe {
       ->from($table)
       ->execute()
       ->fetch();
-    return $res['row_count'];
+    return isset($res['rows_count']) ? $res['rows_count'] : 0;
   }
 
   public function getTableRows($table, $whereClause = NULL, $limit = NULL, $offset = NULL) {
@@ -185,6 +194,24 @@ class DevelTablesProbe {
     $res = $query_builder
       ->execute()
       ->fetchAll();
+    return $res;
+  }
+
+  public function pkToString($table_info, $record) {
+    foreach ($table_info['primary_key'] as $c) {
+      if (isset($record[$c])) {
+        $tok = str_replace(static::PK_SEPARATOR, static::PK_SEPARATOR_REPLACE, $record[$c]); // @todo unicode replace
+      }
+      else {
+        $tok = NULL;
+      }
+      if (isset($res)) {
+        $res .= static::PK_SEPARATOR . $tok;
+      }
+      else {
+        $res = $tok;
+      }
+    }
     return $res;
   }
 

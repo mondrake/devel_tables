@@ -67,20 +67,19 @@ class HelloController extends ControllerBase {
       $config = \Drupal::config('devel_tables.settings');
       $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
       $table_info = $probe->getTable($table);
-      $colDets = $table_info['DBAL']->getColumns();
-kint($colDets);
-      $total = $probe->getTableRowsCount($table);
+      $columns = $table_info['DBAL']->getColumns();
+      $rows_count = $probe->getTableRowsCount($table);
       $limit = 50;
-      $pageNo = pager_find_page(4); 
-      pager_default_initialize($total, $limit, 4);
-      $records = $probe->getTableRows($table, NULL, $limit , $pageNo * $limit);
-kint($records);
+      $current_page = pager_find_page(4);
+      pager_default_initialize($rows_count, $limit, 4);
+      $records = $probe->getTableRows($table, NULL, $limit , $current_page * $limit);
+
       $header = array();
       $header[] =  array('data' => t('#'));
-      foreach ($colDets as $c => $d)    {
+      foreach ($columns as $c => $d)    {
         $header[] = $c;
 /*          $header[] = theme('textimage_style_image', array(
-              'style_name' => 'verthead', 
+              'style_name' => 'verthead',
               'text'   => $c,
               'alt'   => $c,
               'title'   => $c,
@@ -88,29 +87,29 @@ kint($records);
       }
 
       $rows = array();
-      $j = ($pageNo * $limit) + 1;
+      $j = ($current_page * $limit) + 1;
       if ($records) {
-          foreach ($records as $a => $b) {        // $b is the record
+          foreach ($records as $a => $b) {        // $b is the actual record
               $row = array();
-              $enc = base64_encode($b->primaryKeyString);
+              $enc = base64_encode($probe->pkToString($table_info,$b));
               $row[] = $j;
-              foreach ($colDets as $c => $d)    {        // $c is the field, $d is the value
-                  if ($d['type'] == 'blob')    {  // @todo check a value exists
+              foreach ($columns as $c => $d)    {        // $c is the column name, $d is the column definition
+                if ($d->getType()->getName() == 'blob')    {  // @todo check a value exists
                       switch ($config->get('list_records.display_lob')) {
                       case 'label':
-                          $tmp = '*BLOB* ' . strlen($b->$c);
+                          $tmp = '*BLOB* ' . strlen($b[$c]);
                           break;
                       case 'text':
                       default:
-                          $tmp = _DTTextTrim($d, $b->$c);
+                          $tmp = _DTTextTrim(isset($table_info['primary_key'][$c]), $b[$c]);
                           break;
                       }
                   } elseif ($c == 'timestamp' || $c == 'created'|| $c == 'expire') {
-                      $tmp = format_date((int) $b->$c, 'full');
+                      $tmp = format_date((int) $b[$c], 'full');
                   } else {
-                      $tmp = _DTTextTrim($d, $b->$c);
+                      $tmp = _DTTextTrim(isset($table_info['primary_key'][$c]), $b[$c]);
                   }
-                  if ($d['primaryKey']) {
+                  if (isset($table_info['primary_key'][$c])) {
                       $row[] = Link::fromTextAndUrl($tmp, new Url('devel_tables.record_edit', [
                         'connection' => $connection,
                         'table' => $table,
@@ -125,17 +124,17 @@ kint($records);
           }
       }
 
-      //drupal_set_title($DTTables[$table]['name']);  
-      
-      //$build = t('Rows #: ') . $total;
-      
+      //drupal_set_title($DTTables[$table]['name']);
+
+      //$build = t('Rows #: ') . $rows_count;
+
       $build[] = [
         '#type' => 'pager',
         '#element' => 4,
         /*'#quantity' => 9,
         '#route_name' => '<current>',*/
       ];
-      
+
       $build[] = [
         '#theme' => 'table',
         '#header' => $header,
@@ -149,9 +148,9 @@ kint($records);
 
       // enhance breadcrumbs
       //$breadcrumbs = drupal_get_breadcrumb();
-      //$breadcrumbs[] = l(t('Tables'),'devel_tables/tables'); 
+      //$breadcrumbs[] = l(t('Tables'),'devel_tables/tables');
       //drupal_set_breadcrumb($breadcrumbs);
-      
+
       return $build;
   }
 
