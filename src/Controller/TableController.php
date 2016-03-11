@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\devel_tables\Controller\HelloController.
- */
 
 namespace Drupal\devel_tables\Controller;
 
@@ -10,7 +6,11 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
 
-class HelloController extends ControllerBase {
+class TableController extends ControllerBase {
+
+  public function listTablesTitle() {
+    return $this->t("Database: %database", ['%database' => 'drupal/default']);
+  }
 
   public function listTables() {
     $config = \Drupal::config('devel_tables.settings');
@@ -62,6 +62,10 @@ class HelloController extends ControllerBase {
       '#empty' => t('No data has been collected.'),
     ];
     return $build;
+  }
+
+  public function tableRecordsTitle($connection, $table) {
+    return $this->t("Table: %table", ['%table' => $table]);
   }
 
   public function tableRecords($connection, $table) {
