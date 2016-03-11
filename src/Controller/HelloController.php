@@ -15,7 +15,8 @@ class HelloController extends ControllerBase {
   public function listTables() {
     $config = \Drupal::config('devel_tables.settings');
     $connection = 'default'; // @todo session based connection
-    $tables = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection)->getTables();
+    $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
+    $tables = $probe->getTables();
 
     // prepares table headers
     $header = array();
@@ -31,19 +32,20 @@ class HelloController extends ControllerBase {
 
     // prepares table rows
     $rows = array();
-    foreach ($tables as $table_name => $table_properties) {
-      $r = array();
+    foreach ($tables as $table_name) {
+      $r = [];
+      $table_info = $probe->getTable($table_name);
       if ($config->get('list_tables.display_prefix')) {
-        $r[] = $table_properties['prefix'];
+        $r[] = $table_info['prefix'];
       }
       $r[] = Link::fromTextAndUrl($table_name, new Url('devel_tables.table_records', [
         'connection' => $connection,
         'table' => $table_name,
       ]));
-      $r[] = isset($table_properties['drupal']['provider']) ? $table_properties['drupal']['provider'] : NULL;
-      $r[] = $table_properties['description'];
+      $r[] = isset($table_info['drupal']['provider']) ? $table_info['drupal']['provider'] : NULL;
+      $r[] = $table_info['description'];
       if ($config->get('list_tables.display_row_count')) {
-        $r[] = $table_properties['rows_count'];
+        $r[] = $table_info['rows_count'];
       }
       $rows[] = $r;
     }
