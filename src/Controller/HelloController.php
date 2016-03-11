@@ -38,7 +38,7 @@ class HelloController extends ControllerBase {
       if ($config->get('list_tables.display_prefix')) {
         $r[] = $table_info['prefix'];
       }
-      $r[] = Link::fromTextAndUrl($table_name, new Url('devel_tables.table_records', [
+      $r[] = Link::fromTextAndUrl($table_info['base_name'], new Url('devel_tables.table_records', [
         'connection' => $connection,
         'table' => $table_name,
       ]));

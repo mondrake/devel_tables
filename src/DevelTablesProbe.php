@@ -74,7 +74,7 @@ class DevelTablesProbe {
     }
     else {
       $tables = array_keys($this->tableDataCollector());
-      $this->cache->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList", $tables, Cache::PERMANENT); // @todo temporary
+      $this->cache->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList", $tables, Cache::PERMANENT, ["devel_tables.collected.{$this->connectionType}.{$this->connectionKey}"]); // @todo temporary
     }
     return $tables;
   }
@@ -113,93 +113,32 @@ class DevelTablesProbe {
       }
     }
 
-    // Provided by SQL storage entities.
+    // Provided by SQL storage entities and their fields.
     $table_prefix = Database::getConnection()->tablePrefix();
     $entity_types = \Drupal::entityTypeManager()->getDefinitions();
     foreach($entity_types as $entity_type_name => $entity_type) {
       $entity_type_storage = \Drupal::entityManager()->getStorage($entity_type_name);
-//if($entity_type_name == 'block_content') { kint($entity_type_storage->getFieldStorageDefinitions()); }
       if ($entity_type_storage instanceof \Drupal\Core\Entity\Sql\SqlEntityStorageInterface) {
         $mapping = $entity_type_storage->getTableMapping();
         // Entity level tables.
         foreach($mapping->getTableNames() as $table_name) {
-          $schema_tables[$table_name]['provider'] = 'entity type/' . $entity_type_name;
+          $schema_tables[$table_name]['provider'] = 'entity/' . $entity_type_name;
           $schema_tables[$table_name]['prefix'] = $table_prefix;
+        }
+        // Field level tables.
+        $field_definitions = \Drupal::entityManager()->getFieldStorageDefinitions($entity_type_name);
+        foreach($field_definitions as $field_name => $field_definition) {
+          if ($mapping->requiresDedicatedTableStorage($field_definition)) {
+            $field_data_table_name = $mapping->getDedicatedDataTableName($field_definition);
+            $schema_tables[$field_data_table_name]['provider'] = 'field/' . $entity_type_name . '.' . $field_name;
+            $schema_tables[$field_data_table_name]['prefix'] = $table_prefix;
+            $field_revision_table_name = $mapping->getDedicatedRevisionTableName($field_definition);
+            $schema_tables[$field_revision_table_name]['provider'] = 'field/' . $entity_type_name . '.' . $field_name;
+            $schema_tables[$field_revision_table_name]['prefix'] = $table_prefix;
+          }
         }
       }
     }
-
-
-
-/*if ($entity_type instanceof \Drupal\Core\Entity\ContentEntityType) {
-  kint($entity_type_name);
-kint(\Drupal::entityManager()->getStorage($entity_type_name));
-  $foo = \Drupal::entityManager()->getBundleInfo($entity_type_name);
-  $fox = [];
-  foreach($foo as $bundle_name => $bundle) {
-    $field_defs = \Drupal::entityManager()->getFieldDefinitions($entity_type_name, $bundle_name);
-    $fox[] = [$bundle_name, implode(', ', array_keys($field_defs))];
-    //kint(\Drupal::entityManager()->getFieldStorageDefinitions($entity_type_name));
-/*    foreach($field_defs as $field_name => $field) {
-      if ($field_config = \Drupal\field\Entity\FieldConfig::loadByName($entity_type_name, $bundle_name, $field_name)) {
-        kint($field_config->getFieldStorageDefinition());
-        kint($field_config->getFieldStorageDefinition()->getSchema());
-      }
-    }
-  }
-  //kint($fox);
-}*/
-
-
-
-/*$foo = \Drupal::entityManager()->getFieldMap();
-kint($foo);
-$foo = \Drupal::entityManager()->getAllBundleInfo();
-kint($foo);
-//$foo = \Drupal::entityManager()->getBundleInfo($entity_type);
-$foo = \Drupal::entityManager()->getBundleInfo('node');
-kint($foo);
-//$foo = \Drupal\field\Entity\FieldConfig::loadByName($entity_type, $bundle, $field_name);
-$foo = \Drupal\field\Entity\FieldConfig::loadByName('node', 'article', 'body');
-kint($foo);
-//$foo = \Drupal::entityManager()->getFieldDefinitions($entity_type, $bundle);
-$foo = \Drupal::entityManager()->getFieldDefinitions('node', 'article');
-kint($foo);
-//$foo = \Drupal::entityManager()->getFieldStorageDefinitions($entity_type);
-$foo = \Drupal::entityManager()->getFieldStorageDefinitions('node');
-kint($foo);*/
-/*$foo = \Drupal::entityManager()->getStorage('field_storage_config')->loadMultiple();
-foreach ($foo as $name => $conf) {
-  kint($name);
-  //kint($conf);
-  //kint([$conf->getTargetEntityTypeId(), $conf->getBundles()]);
-  $field_info = \Drupal::entityManager()->getStorage($conf->getTargetEntityTypeId());
-  //kint($field_info->getTableMapping());
-  kint($field_info->getTableMapping()->getTableNames());
-  kint($field_info->getTableMapping()->getDedicatedTableNames());
-}*/
-
-    // Provided by fields.
-/*    $fields = \Drupal::entityManager()->getStorage('field_storage_config')->loadMultiple();
-    foreach($fields as $field_name => $field) {
-      $mapping = \Drupal::entityManager()->getStorage($field->getTargetEntityTypeId())->getTableMapping();
-//      kint($mapping->getDedicatedTableNames());
-      foreach($mapping->getTableNames() as $table_name) {
-        if ($table_name) {
-          $schema_tables[$table_name]['provider'] = 'entity/' . $field->getTargetEntityTypeId();
-          $schema_tables[$table_name]['prefix'] = $table_prefix;
-        }
-      }
-      foreach($mapping->getDedicatedTableNames() as $table_name) {
-        if ($table_name) {
-          $schema_tables[$table_name]['provider'] = 'field/' . $field_name;
-          $schema_tables[$table_name]['prefix'] = $table_prefix;
-        }
-      }
-    }
-*/
-
-
 
     $table_list = [];
 
@@ -234,7 +173,7 @@ foreach ($foo as $name => $conf) {
           $table_list[$table_name]['drupal'] = $schema_tables[$base_table_name];
         }
       }
-      $this->cache->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:table:{$table_name}", $table_list[$table_name], Cache::PERMANENT); // @todo temporary
+      $this->cache->set("devel_tables:{$this->connectionType}:{$this->connectionKey}:table:{$table_name}", $table_list[$table_name], Cache::PERMANENT, ["devel_tables.collected.{$this->connectionType}.{$this->connectionKey}"]); // @todo temporary
     }
     ksort($table_list);
     return $table_list;
