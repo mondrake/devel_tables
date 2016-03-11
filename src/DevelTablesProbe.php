@@ -68,7 +68,7 @@ class DevelTablesProbe {
     return $this;
   }
 
-  public function getTables() {
+  public function getTableList() {
     if ($cache = $this->cache->get("devel_tables:{$this->connectionType}:{$this->connectionKey}:tableList")) {
       $tables = $cache->data;
     }
@@ -179,7 +179,7 @@ class DevelTablesProbe {
     return $table_list;
   }
 
-  public function getTable($table_name) {
+  public function getTableInfo($table_name) {
     return $this->cache->get("devel_tables:{$this->connectionType}:{$this->connectionKey}:table:{$table_name}")->data;
   }
 

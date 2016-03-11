@@ -16,7 +16,7 @@ class HelloController extends ControllerBase {
     $config = \Drupal::config('devel_tables.settings');
     $connection = 'default'; // @todo session based connection
     $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
-    $tables = $probe->getTables();
+    $tables = $probe->getTableList();
 
     // prepares table headers
     $header = array();
@@ -34,7 +34,7 @@ class HelloController extends ControllerBase {
     $rows = array();
     foreach ($tables as $table_name) {
       $r = [];
-      $table_info = $probe->getTable($table_name);
+      $table_info = $probe->getTableInfo($table_name);
       if ($config->get('list_tables.display_prefix')) {
         $r[] = $table_info['prefix'];
       }
@@ -68,7 +68,7 @@ class HelloController extends ControllerBase {
       // @todo a default setting if variable not defined
       $config = \Drupal::config('devel_tables.settings');
       $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
-      $table_info = $probe->getTable($table);
+      $table_info = $probe->getTableInfo($table);
       $columns = $table_info['DBAL']->getColumns();
       $rows_count = $probe->getTableRowsCount($table);
       $limit = 50;

@@ -26,7 +26,7 @@ class RecordEdit extends FormBase {
     // @todo a default setting if variable not defined
     $config = \Drupal::config('devel_tables.settings');
     $probe = \Drupal::service('devel_tables.probe')->connectDrupalDb($connection);
-    $table_info = $probe->getTable($table);
+    $table_info = $probe->getTableInfo($table);
     $columns = $table_info['DBAL']->getColumns();
     $primary_key_string = base64_decode($record);
     //$primary_key = $probe->stringToPk($table_info, $record);
