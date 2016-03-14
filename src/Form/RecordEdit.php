@@ -100,7 +100,7 @@ class RecordEdit extends FormBase {
       // Determines suffix for timestamp @todo make this abstract checking on int value
       $suffix_desc = null;
       if ($a == 'timestamp' || $a == 'created')    {
-        $suffix_desc .= format_date((int) $rec[$a], 'full');
+        $suffix_desc .= format_date((int) $rec[$a], 'devel_tables_date'); // @todo config
       }
 
       // output field name

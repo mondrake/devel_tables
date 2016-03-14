@@ -8,6 +8,10 @@ use Drupal\Core\Url;
 
 class TableController extends ControllerBase {
 
+  public function refresh() {
+    return ['#markup' => 'xxxx'];
+  }
+
   public function listTablesTitle() {
     return $this->t("Database: %database", ['%database' => 'drupal/default']);
   }
@@ -111,7 +115,7 @@ class TableController extends ControllerBase {
                           break;
                       }
                   } elseif ($c == 'timestamp' || $c == 'created'|| $c == 'expire') {
-                      $tmp = format_date((int) $b[$c], 'full');
+                      $tmp = format_date((int) $b[$c], 'devel_tables_date'); // @todo config
                   } else {
                       $tmp = _DTTextTrim(isset($table_info['primary_key'][$c]), $b[$c]);
                   }

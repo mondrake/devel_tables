@@ -1,0 +1,6 @@
+langcode: en
+status: true
+id: devel_tables_date
+label: 'Devel tables date'
+locked: false
+pattern: 'Y-m-d H:i:s'
