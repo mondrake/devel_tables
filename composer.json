@@ -3,6 +3,6 @@
     "type": "drupal-module",
     "description": "Browse database tables",
     "require": {
-        "doctrine/dbal": "v2.5.4"
+        "doctrine/dbal": "^2.5.4"
     }
 }
