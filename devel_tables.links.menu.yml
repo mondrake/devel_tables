@@ -3,8 +3,8 @@ devel_tables.settings:
   description: 'Configure Devel tables settings.'
   parent: 'system.admin_config_development'
   route_name: devel_tables.settings
-devel_tables.database_tables:
-  title: 'State editor'
-  description: 'Edit state system values.'
-  route_name: devel_tables.database_tables
-  menu_name: devel
+#devel_tables.database_tables:
+#  title: 'State editor'
+#  description: 'Edit state system values.'
+#  route_name: devel_tables.database_tables
+#  menu_name: devel
