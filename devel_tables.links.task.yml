@@ -1,0 +1,6 @@
+# devel_tables links
+
+devel_tables.refresh:
+  route_name: devel_tables.refresh
+  title: 'Refresh'
+  base_route: devel_tables.content

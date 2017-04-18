@@ -18,6 +18,16 @@ devel_tables.content:
   requirements:
     _permission: 'administer site configuration'
 
+devel_tables.refresh:
+  path: '/devel_tables/refresh'
+  defaults:
+    _controller: '\Drupal\devel_tables\Controller\TableController::refresh'
+    _title: 'Refresh table list'
+  options:
+    _admin_route: TRUE
+  requirements:
+    _permission: 'administer site configuration'
+
 devel_tables.table_records:
   path: '/devel_tables/database/{connection}/table/{table}'
   defaults:

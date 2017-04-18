@@ -127,11 +127,12 @@ class RecordEdit extends FormBase {
           if (!$tmp) {
             $tmp = jsonpp($rec[$a]);
           }
+          $tmpx['#markup'] = kdevel_print_object($tmp);
         }
         else {
           $tmp = strtr($rec[$a], array('{' => "\n\t", '}' => "\n"));
+          $tmpx['#markup'] = $tmp;
         }
-        $tmpx['#markup'] = kdevel_print_object($tmp);
       }
       else {
         $tmpx['#default_value'] = $rec[$a];

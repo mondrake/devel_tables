@@ -1,0 +1,7 @@
+# devel_tables actions
+
+devel_tables.refresh:
+  route_name: devel_tables.refresh
+  title: 'Refresh'
+  appears_on:
+    - devel_tables.content

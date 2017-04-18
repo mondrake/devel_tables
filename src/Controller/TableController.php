@@ -12,6 +12,19 @@ class TableController extends ControllerBase {
     return ['#markup' => 'xxxx'];
   }
 
+	private static function _fits($variable) {
+		if (!is_numeric($variable)) {
+      return false;
+    }
+		$len = strlen((int) $variable);
+		return ($len === 9 || $len === 10);
+	}
+
+
+	protected function _parse(&$variable) {
+		return self::_fits($variable);
+	}
+
   public function listTablesTitle() {
     return $this->t("Database: %database", ['%database' => 'drupal/default']);
   }
@@ -114,7 +127,7 @@ class TableController extends ControllerBase {
                           $tmp = _DTTextTrim(isset($table_info['primary_key'][$c]), $b[$c]);
                           break;
                       }
-                  } elseif ($c == 'timestamp' || $c == 'created'|| $c == 'expire') {
+                  } elseif ($this->_parse($b[$c])) {
                       $tmp = format_date((int) $b[$c], 'devel_tables_date'); // @todo config
                   } else {
                       $tmp = _DTTextTrim(isset($table_info['primary_key'][$c]), $b[$c]);
